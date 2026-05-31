@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IFRAnet Weather</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --sky-top:#0d1b3e;
+  --sky-mid:#1a3560;
+  --sky-low:#2a5298;
+  --accent:#7eb8f7;
+  --accent2:#a8d4ff;
+  --card:#ffffff0d;
+  --card-hover:#ffffff14;
+  --border:#ffffff18;
+  --text:#e8f0fe;
+  --muted:#8eafd4;
+  --good:#4ade80;
+  --moderate:#fbbf24;
+  --poor:#f87171;
+  --radius:20px;
+}
+
+body{
+  font-family:'DM Sans',sans-serif;
+  background:var(--sky-top);
+  color:var(--text);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* ── Sky background ── */
+.sky{position:fixed;inset:0;z-index:0;background:linear-gradient(170deg,#0a1628 0%,#0d2148 25%,#1a3a6b 55%,#2a5298 80%,#3a6bc0 100%);overflow:hidden}
+.sky::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% -10%,#4a7fd420 0%,transparent 70%)}
+.sun{position:absolute;top:8%;left:50%;transform:translateX(-50%);width:90px;height:90px;border-radius:50%;background:radial-gradient(circle,#ffe566 0%,#ffb020 40%,#ff7a0020 100%);box-shadow:0 0 60px 20px #ffb02025,0 0 120px 60px #ff7a0010;animation:sunFloat 8s ease-in-out infinite}
+@keyframes sunFloat{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-6px)}}
+.clouds{position:absolute;width:100%;height:100%;pointer-events:none}
+.cloud{position:absolute;border-radius:50px;background:#ffffff08;animation:drift linear infinite}
+.c1{width:200px;height:40px;top:18%;animation-duration:60s;animation-delay:-10s}
+.c2{width:140px;height:28px;top:28%;animation-duration:80s;animation-delay:-30s}
+.c3{width:280px;height:50px;top:14%;animation-duration:100s;animation-delay:-55s}
+@keyframes drift{from{left:-300px}to{left:110%}}
+.stars{position:absolute;width:100%;height:100%;opacity:0.3}
+.star{position:absolute;width:2px;height:2px;border-radius:50%;background:#fff;animation:twinkle 3s ease-in-out infinite}
+@keyframes twinkle{0%,100%{opacity:0.3}50%{opacity:1}}
+
+/* ── Layout ── */
+.page{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:24px 20px 60px}
+
+/* ── Header ── */
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.location{display:flex;flex-direction:column;gap:2px}
+.location-name{font-family:'DM Serif Display',serif;font-size:28px;font-weight:400;letter-spacing:-0.3px;color:#fff}
+.location-sub{font-size:13px;color:var(--muted);letter-spacing:0.3px}
+.header-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.time-display{font-size:13px;color:var(--muted)}
+.ws-dot{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--good);background:#4ade8015;padding:3px 9px;border-radius:20px;border:1px solid #4ade8025}
+.ws-pulse{width:5px;height:5px;border-radius:50%;background:var(--good);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.5)}}
+.ws-dot.off{color:var(--muted);background:transparent;border-color:var(--border)}
+.ws-dot.off .ws-pulse{background:var(--muted);animation:none}
+
+/* ── Node status bar ── */
+.node-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.node-chip{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;backdrop-filter:blur(12px);transition:border-color .3s,background .3s}
+.node-chip.active-node{border-color:#7eb8f740;background:#7eb8f710}
+.node-led{width:7px;height:7px;border-radius:50%}
+.node-led.on{background:var(--good);box-shadow:0 0 6px var(--good)}
+.node-led.off{background:var(--muted)}
+.node-reading{color:var(--muted);margin-left:2px}
+.node-dist{font-size:10px;color:var(--muted);margin-left:4px}
+
+/* ── Location card — NEW ── */
+.location-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:16px;padding:14px 18px;margin-bottom:12px;
+  backdrop-filter:blur(16px);
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  flex-wrap:wrap;
+}
+.loc-left{display:flex;align-items:center;gap:10px}
+.gps-icon{width:32px;height:32px;border-radius:50%;background:#4ade8015;border:1px solid #4ade8025;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.gps-icon svg{width:16px;height:16px;color:var(--good)}
+.gps-icon.acquiring svg{color:var(--muted)}
+.gps-icon.error svg{color:var(--poor)}
+.loc-info{}
+.loc-coords{font-size:13px;color:var(--text);font-weight:500}
+.loc-status{font-size:11px;color:var(--muted);margin-top:2px}
+.loc-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.nearest-badge{
+  display:flex;align-items:center;gap:5px;
+  padding:4px 10px;border-radius:20px;
+  background:#7eb8f715;border:1px solid #7eb8f730;
+  font-size:11px;color:var(--accent2);
+  white-space:nowrap;
+}
+.nearest-badge.offline-node{background:#f8717115;border-color:#f8717130;color:var(--poor)}
+.dist-text{font-size:11px;color:var(--muted)}
+
+/* ── GPS permission button ── */
+.gps-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 16px;border-radius:12px;
+  background:#7eb8f720;border:1px solid #7eb8f740;
+  color:var(--accent2);font-size:12px;font-family:inherit;
+  cursor:pointer;transition:background .2s;
+  margin-bottom:12px;
+}
+.gps-btn:hover{background:#7eb8f730}
+.gps-btn.hidden{display:none}
+
+/* ── Toast notification ── */
+.toast{
+  position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:#1a3560ee;border:1px solid #7eb8f740;
+  color:var(--text);padding:10px 20px;border-radius:24px;
+  font-size:13px;backdrop-filter:blur(20px);
+  opacity:0;transition:opacity .3s,transform .3s;
+  z-index:100;pointer-events:none;white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── Hero card ── */
+.hero{background:var(--card);border:1px solid var(--border);border-radius:28px;padding:36px 32px 28px;margin-bottom:16px;backdrop-filter:blur(20px);position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-60px;right:-60px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,#7eb8f715 0%,transparent 70%);pointer-events:none}
+.hero-main{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px}
+.hero-temp{font-family:'DM Serif Display',serif;font-size:86px;line-height:1;font-weight:400;color:#fff;letter-spacing:-3px}
+.hero-temp sup{font-size:32px;vertical-align:super;letter-spacing:0;color:var(--accent2);margin-left:4px}
+.hero-desc{margin-top:10px}
+.condition{font-size:22px;font-weight:300;color:var(--accent2);margin-bottom:4px}
+.feels-like{font-size:13px;color:var(--muted)}
+.hero-right{text-align:right}
+.hi-lo{font-size:14px;color:var(--muted);margin-bottom:8px}
+.hi-lo span{color:var(--text)}
+.humidity-big{font-family:'DM Serif Display',serif;font-size:36px;color:var(--accent);letter-spacing:-1px}
+.humidity-lbl{font-size:11px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase}
+
+/* ── Quick stats row ── */
+.quick-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-radius:14px;overflow:hidden}
+.qs{background:var(--sky-top);padding:14px 16px;display:flex;flex-direction:column;gap:3px}
+.qs-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)}
+.qs-val{font-size:18px;font-weight:500;color:#fff}
+.qs-unit{font-size:11px;color:var(--muted);font-weight:400}
+
+/* ── Grid ── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+
+/* ── Card base ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;backdrop-filter:blur(16px);transition:background .2s}
+.card:hover{background:var(--card-hover)}
+.card-label{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:6px}
+.card-label svg{width:14px;height:14px;opacity:0.7}
+
+/* ── Wind card ── */
+.wind-compass{width:120px;height:120px;border-radius:50%;border:1px solid var(--border);position:relative;margin:0 auto 16px;display:flex;align-items:center;justify-content:center}
+.compass-ring{position:absolute;inset:8px;border-radius:50%;border:1px solid #ffffff10}
+.compass-tick{position:absolute;width:2px;height:8px;background:var(--muted);left:50%;margin-left:-1px;top:2px;transform-origin:50% 58px;opacity:0.4}
+.compass-label{position:absolute;font-size:10px;color:var(--muted);font-weight:500}
+.n-lbl{top:12px;left:50%;transform:translateX(-50%)}
+.s-lbl{bottom:12px;left:50%;transform:translateX(-50%)}
+.e-lbl{right:14px;top:50%;transform:translateY(-50%)}
+.w-lbl{left:14px;top:50%;transform:translateY(-50%)}
+.wind-arrow{position:absolute;width:4px;height:42px;background:linear-gradient(to bottom,var(--accent) 0%,transparent 100%);left:50%;margin-left:-2px;top:18px;transform-origin:50% calc(100% + 18px);border-radius:2px;transition:transform 1s cubic-bezier(.34,1.56,.64,1)}
+.wind-arrow::after{content:'';position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.wind-speed-center{text-align:center}
+.wind-big{font-size:28px;font-weight:500;color:#fff}
+.wind-small{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.wind-dir-text{font-size:18px;font-weight:500;color:var(--accent);margin-top:4px}
+
+/* ── AQI card ── */
+.aqi-number{font-family:'DM Serif Display',serif;font-size:56px;line-height:1;letter-spacing:-2px;margin-bottom:4px}
+.aqi-bar{height:6px;border-radius:3px;background:linear-gradient(90deg,#4ade80,#fbbf24 40%,#f87171 70%,#a855f7 100%);margin:12px 0;position:relative}
+.aqi-cursor{position:absolute;top:-3px;width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid currentColor;transform:translateX(-50%);transition:left 1s ease}
+.aqi-status{font-size:14px;font-weight:500}
+.aqi-desc{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5}
+
+/* ── Rain card ── */
+.rain-visual{display:flex;align-items:flex-end;gap:6px;height:60px;margin-bottom:12px}
+.rain-bar{flex:1;border-radius:4px 4px 0 0;min-height:4px;background:linear-gradient(to top,var(--accent) 0%,var(--accent2) 100%);transition:height .8s ease}
+.rain-status-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;margin-top:6px}
+.rain-dry{background:#4ade8015;color:var(--good);border:1px solid #4ade8025}
+.rain-light{background:#7eb8f715;color:var(--accent);border:1px solid var(--border)}
+.rain-heavy{background:#f8717115;color:var(--poor);border:1px solid #f8717125}
+
+/* ── Pressure card ── */
+.pressure-arc{display:block;width:100%;max-width:160px;margin:0 auto}
+
+/* ── Light card ── */
+.ldr-bar{height:10px;border-radius:5px;background:linear-gradient(90deg,#1a1a40,#2a4a8a,#4a7fd4,#7eb8f7,#ffe566);margin:12px 0;position:relative;overflow:visible}
+.ldr-cursor{position:absolute;top:-4px;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid var(--accent);transform:translateX(-50%);transition:left 1s ease;box-shadow:0 0 8px #7eb8f740}
+.ldr-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
+
+/* ── Sensor sparklines ── */
+.sensor-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:12px}
+.sensor-tile{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;backdrop-filter:blur(16px);transition:background .2s}
+.sensor-tile:hover{background:var(--card-hover)}
+.st-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:8px}
+.st-val{font-size:24px;font-weight:500;color:#fff;line-height:1}
+.st-unit{font-size:12px;color:var(--muted);font-weight:400}
+.st-spark{margin-top:8px;height:28px}
+.st-spark svg{width:100%;height:100%}
+
+/* ── History chart ── */
+.chart-area{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;backdrop-filter:blur(16px);margin-bottom:12px}
+.chart-tabs{display:flex;gap:4px}
+.ctab{padding:5px 12px;border-radius:8px;font-size:12px;background:none;border:none;color:var(--muted);cursor:pointer;transition:all .2s}
+.ctab.active{background:#ffffff15;color:#fff}
+.chart-canvas-wrap{position:relative;height:120px}
+
+/* ── Spinner ── */
+.empty{text-align:center;padding:40px;color:var(--muted)}
+.spinner{width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Map container ── */
+#mapContainer{
+  width:100%;
+  height:350px;
+  border-radius:16px;
+  overflow:hidden;
+  border:1px solid var(--border);
+  margin-bottom:12px;
+  backdrop-filter:blur(16px);
+  position:relative;
+}
+#map{
+  width:100%;
+  height:100%;
+}
+.map-recenter-btn{
+  position:absolute;
+  bottom:16px;
+  right:16px;
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  background:#1a3560ee;
+  border:1px solid #7eb8f740;
+  color:var(--accent2);
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:20px;
+  transition:background .2s,transform .2s;
+  z-index:10;
+  backdrop-filter:blur(16px);
+}
+.map-recenter-btn:hover{
+  background:#1a3560ff;
+  transform:scale(1.1);
+}
+.map-recenter-btn:active{
+  transform:scale(0.95);
+}
+.map-info-box{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:16px;
+  margin-bottom:12px;
+  backdrop-filter:blur(16px);
+}
+.map-info-row{
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:10px;
+  font-size:13px;
+  padding-bottom:8px;
+  border-bottom:1px solid var(--border);
+}
+.map-info-row:last-child{
+  margin-bottom:0;
+  border-bottom:none;
+  padding-bottom:0;
+}
+.map-info-label{
+  color:var(--muted);
+  font-weight:500;
+}
+.map-info-value{
+  color:var(--text);
+  font-weight:600;
+  font-family:'DM Serif Display',serif;
+}
+.map-status{
+  font-size:12px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  color:var(--muted);
+  margin-top:8px;
+  padding-top:8px;
+  border-top:1px solid var(--border);
+}
+.map-status.active{
+  color:var(--good);
+}
+.map-dot{
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:currentColor;
+  box-shadow:0 0 8px currentColor;
+}
+
+/* ── Responsive ── */
+@media(max-width:640px){
+  .grid-2,.grid-3{grid-template-columns:1fr}
+  .hero-temp{font-size:64px}
+  .quick-stats{grid-template-columns:repeat(2,1fr)}
+  .hero-main{flex-direction:column;gap:16px}
+  .hero-right{text-align:left}
+  .location-card{flex-direction:column;align-items:flex-start}
+  .loc-right{align-items:flex-start}
+}
+</style>
+</head>
+<body>
+
+<div class="sky">
+  <div class="sun"></div>
+  <div class="clouds">
+    <div class="cloud c1"></div>
+    <div class="cloud c2"></div>
+    <div class="cloud c3"></div>
+  </div>
+  <div class="stars" id="stars"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="location">
+      <div class="location-name" id="locationName">IFRAnet</div>
+      <div class="location-sub" id="locationSub">Initialising…</div>
+    </div>
+    <div class="header-right">
+      <div class="time-display" id="timeLbl">--:--</div>
+      <div class="ws-dot off" id="wsDot">
+        <div class="ws-pulse"></div>
+        <span id="wsLbl">Connecting…</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Node status bar -->
+  <div class="node-bar" id="nodeBar">
+    <div class="node-chip" id="chip_node_1">
+      <div class="node-led off" id="led_node_1"></div>
+      <span id="name_node_1">Node 1</span>
+      <span class="node-reading" id="nr_node_1">—</span>
+      <span class="node-dist" id="dist_node_1"></span>
+    </div>
+    <div class="node-chip" id="chip_node_2">
+      <div class="node-led off" id="led_node_2"></div>
+      <span id="name_node_2">Node 2</span>
+      <span class="node-reading" id="nr_node_2">—</span>
+      <span class="node-dist" id="dist_node_2"></span>
+    </div>
+  </div>
+
+  <!-- GPS / Location card -->
+  <div class="location-card" id="locationCard">
+    <div class="loc-left">
+      <div class="gps-icon acquiring" id="gpsIcon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/>
+          <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8"/>
+        </svg>
+      </div>
+      <div class="loc-info">
+        <div class="loc-coords" id="locCoords">Requesting location…</div>
+        <div class="loc-status" id="locStatus">Allow location access to see nearest node</div>
+      </div>
+    </div>
+    <div class="loc-right">
+      <div class="nearest-badge" id="nearestBadge">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+        <span id="nearestBadgeText">—</span>
+      </div>
+      <div class="dist-text" id="distText"></div>
+    </div>
+  </div>
+
+  <!-- GPS permission button (shown when geolocation needs a nudge) -->
+  <button class="gps-btn hidden" id="gpsBtn" onclick="requestGPS()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/>
+    </svg>
+    Share my location
+  </button>
+
+  <!-- Hero card -->
+  <div class="hero" style="margin-bottom:12px">
+    <div class="hero-main">
+      <div>
+        <div class="hero-temp" id="heroTemp">—<sup>°C</sup></div>
+        <div class="hero-desc">
+          <div class="condition" id="heroCond">Waiting for data</div>
+          <div class="feels-like" id="heroFeels">—</div>
+        </div>
+      </div>
+      <div class="hero-right">
+        <div class="humidity-big" id="heroHum">—</div>
+        <div class="humidity-lbl">Humidity %</div>
+        <div class="hi-lo" style="margin-top:10px" id="heroHL">H — / L —</div>
+      </div>
+    </div>
+    <div class="quick-stats">
+      <div class="qs"><div class="qs-label">Pressure</div><div class="qs-val"><span id="qPres">—</span><span class="qs-unit"> hPa</span></div></div>
+      <div class="qs"><div class="qs-label">Wind</div><div class="qs-val"><span id="qWind">—</span><span class="qs-unit"> m/s</span></div></div>
+      <div class="qs"><div class="qs-label">Light</div><div class="qs-val"><span id="qLight">—</span><span class="qs-unit"> lux</span></div></div>
+      <div class="qs"><div class="qs-label">Battery</div><div class="qs-val"><span id="qBatt">—</span><span class="qs-unit"> V</span></div></div>
+    </div>
+  </div>
+
+  <!-- Row 1: AQI + Wind -->
+  <div class="grid-2" style="margin-bottom:12px">
+    <div class="card">
+      <div class="card-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2"/><path d="M12 8v4l3 3"/></svg>
+        Air quality index
+      </div>
+      <div class="aqi-number" id="aqiNum" style="color:var(--good)">—</div>
+      <div class="aqi-status" id="aqiStatus" style="color:var(--good)">—</div>
+      <div class="aqi-bar"><div class="aqi-cursor" id="aqiCursor" style="left:0%;color:var(--good)"></div></div>
+      <div class="aqi-desc" id="aqiDesc">Waiting for sensor data</div>
+    </div>
+    <div class="card">
+      <div class="card-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/></svg>
+        Wind
+      </div>
+      <div class="wind-compass">
+        <div class="compass-ring"></div>
+        <div class="compass-tick" style="transform:rotate(0deg)"></div>
+        <div class="compass-tick" style="transform:rotate(45deg)"></div>
+        <div class="compass-tick" style="transform:rotate(90deg)"></div>
+        <div class="compass-tick" style="transform:rotate(135deg)"></div>
+        <div class="compass-tick" style="transform:rotate(180deg)"></div>
+        <div class="compass-tick" style="transform:rotate(225deg)"></div>
+        <div class="compass-tick" style="transform:rotate(270deg)"></div>
+        <div class="compass-tick" style="transform:rotate(315deg)"></div>
+        <span class="compass-label n-lbl">N</span>
+        <span class="compass-label s-lbl">S</span>
+        <span class="compass-label e-lbl">E</span>
+        <span class="compass-label w-lbl">W</span>
+        <div class="wind-arrow" id="windArrow" style="transform:rotate(0deg)"></div>
+      </div>
+      <div class="wind-speed-center">
+        <div class="wind-big"><span id="windSpd">—</span><span style="font-size:14px;color:var(--muted);font-weight:300"> m/s</span></div>
+        <div class="wind-dir-text" id="windDir">—</div>
+        <div class="wind-small" id="windBft">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2: Rain -->
+  <div style="margin-bottom:12px">
+    <div class="card">
+      <div class="card-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="8" y1="20" x2="8.01" y2="20"/><line x1="12" y1="18" x2="12.01" y2="18"/><line x1="12" y1="22" x2="12.01" y2="22"/><line x1="16" y1="16" x2="16.01" y2="16"/><line x1="16" y1="20" x2="16.01" y2="20"/></svg>
+        Precipitation
+      </div>
+      <div class="rain-visual" id="rainVisual">
+        <div class="rain-bar" style="height:8px"></div><div class="rain-bar" style="height:8px"></div>
+        <div class="rain-bar" style="height:8px"></div><div class="rain-bar" style="height:8px"></div>
+        <div class="rain-bar" style="height:8px"></div><div class="rain-bar" style="height:8px"></div>
+        <div class="rain-bar" style="height:8px"></div><div class="rain-bar" style="height:8px"></div>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Sensor raw: <span id="rainRaw" style="color:var(--text)">—</span></div>
+      <div id="rainBadge" class="rain-status-badge rain-dry">⬤ Dry</div>
+    </div>
+  </div>
+
+  <!-- Row 3: Pressure + Altitude + Battery -->
+ 
+
+  <!-- Sensor sparklines -->
+  <div class="sensor-row">
+    <div class="sensor-tile"><div class="st-label">Temperature</div><div class="st-val"><span id="stTemp">—</span><span class="st-unit">°C</span></div><div class="st-spark"><svg id="spTemp" viewBox="0 0 100 28" preserveAspectRatio="none"></svg></div></div>
+    <div class="sensor-tile"><div class="st-label">Humidity</div><div class="st-val"><span id="stHum">—</span><span class="st-unit">%</span></div><div class="st-spark"><svg id="spHum" viewBox="0 0 100 28" preserveAspectRatio="none"></svg></div></div>
+    <div class="sensor-tile"><div class="st-label">Wind speed</div><div class="st-val"><span id="stWind">—</span><span class="st-unit">m/s</span></div><div class="st-spark"><svg id="spWind" viewBox="0 0 100 28" preserveAspectRatio="none"></svg></div></div>
+    <div class="sensor-tile"><div class="st-label">Pressure</div><div class="st-val"><span id="stPres">—</span><span class="st-unit">hPa</span></div><div class="st-spark"><svg id="spPres" viewBox="0 0 100 28" preserveAspectRatio="none"></svg></div></div>
+  </div>
+
+  <!-- History chart -->
+  <div class="chart-area">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:13px;font-weight:500" id="chartTitle">Temperature history</div>
+      <div class="chart-tabs">
+        <button class="ctab active" onclick="setChart('temp',this)">Temp</button>
+        <button class="ctab" onclick="setChart('hum',this)">Humidity</button>
+        <button class="ctab" onclick="setChart('aqi',this)">AQI</button>
+        <button class="ctab" onclick="setChart('wind',this)">Wind</button>
+      </div>
+    </div>
+    <div class="chart-canvas-wrap"><canvas id="histChart"></canvas></div>
+  </div>
+
+  <!-- Map Section -->
+  <div style="margin-bottom:16px">
+    <div style="font-size:13px;font-weight:500;margin-bottom:12px">📍 Device Location Map</div>
+    <div id="mapContainer">
+      <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--card)">
+        <div class="spinner"></div>
+      </div>
+      <button class="map-recenter-btn" id="mapRecenterBtn" title="Recenter on my location">📍</button>
+    </div>
+    <div class="map-info-box">
+      <div class="map-info-row">
+        <span class="map-info-label">Latitude</span>
+        <span class="map-info-value" id="mapLat">—</span>
+      </div>
+      <div class="map-info-row">
+        <span class="map-info-label">Longitude</span>
+        <span class="map-info-value" id="mapLng">—</span>
+      </div>
+      <div class="map-info-row">
+        <span class="map-info-label">Accuracy</span>
+        <span class="map-info-value" id="mapAccuracy">—</span>
+      </div>
+      <div class="map-info-row">
+        <span class="map-info-label">Altitude</span>
+        <span class="map-info-value" id="mapAltitude">—</span>
+      </div>
+      <div class="map-status" id="mapStatus">
+        <div class="map-dot"></div>
+        <span id="mapStatusText">Requesting location...</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════
+//  EnviroNet — Location-Aware Frontend
+//  Fetches /api/nearest with user's GPS to pick nearest node.
+//  Falls back to node_1 if GPS unavailable.
+// ═══════════════════════════════════════════════════════════
+
+// ── Stars ──
+(()=>{
+  const c=document.getElementById('stars');
+  for(let i=0;i<80;i++){
+    const s=document.createElement('div');
+    s.className='star';
+    s.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*60}%;animation-delay:${Math.random()*3}s;animation-duration:${2+Math.random()*3}s;opacity:${Math.random()*0.5+0.1}`;
+    c.appendChild(s);
+  }
+})();
+
+// ── Node locations — keep in sync with server.js ──
+const NODE_LOCATIONS = {
+  node_1: { name: 'Node 1 – Block A', lat: 22.5726, lng: 88.3639, radius: 500, area: 'Kolkata' },
+  node_2: { name: 'Node 2 – Block B', lat: 22.5740, lng: 88.3655, radius: 500, area: 'Kolkata' },
+};
+
+// ── App state ──
+const history = { temp:[], hum:[], aqi:[], wind:[], pres:[], labels:[] };
+const S = {
+  node_1: { latest: null, online: false, name: NODE_LOCATIONS.node_1.name },
+  node_2: { latest: null, online: false, name: NODE_LOCATIONS.node_2.name },
+};
+let nearestNode    = 'node_1';
+let gpsActive      = false;
+let userLat        = null, userLng = null;
+let chartMetric    = 'temp';
+let histChart      = null;
+let tempHigh       = -Infinity, tempLow = Infinity;
+let nearestPollTimer = null;
+
+// ── AQI levels ──
+const AQI_LEVELS=[
+  {max:50,  label:'Good',         color:'#4ade80', desc:'Air quality is satisfactory.'},
+  {max:100, label:'Satisfactory', color:'#a3e635', desc:'Acceptable air quality.'},
+  {max:200, label:'Moderate',     color:'#fbbf24', desc:'Sensitive groups may feel effects.'},
+  {max:300, label:'Poor',         color:'#f97316', desc:'Everyone may experience discomfort.'},
+  {max:400, label:'Very Poor',    color:'#f87171', desc:'Serious health effects likely.'},
+  {max:500, label:'Severe',       color:'#a855f7', desc:'Emergency conditions.'},
+];
+function getAQI(v){ for(const l of AQI_LEVELS) if(v<=l.max) return l; return AQI_LEVELS[5]; }
+
+// ── Beaufort ──
+const BFT=[{min:0,label:'Calm'},{min:0.3,label:'Light air'},{min:1.6,label:'Light breeze'},{min:3.4,label:'Gentle breeze'},{min:5.5,label:'Moderate breeze'},{min:8.0,label:'Fresh breeze'},{min:10.8,label:'Strong breeze'},{min:13.9,label:'Near gale'},{min:17.2,label:'Gale'}];
+function getBft(v){ let r=BFT[0]; for(const b of BFT) if(v>=b.min) r=b; return r.label; }
+
+const WIND_DIR_MAP={'North':0,'North-East':45,'East':90,'South-East':135,'South':180,'South-West':225,'West':270,'North-West':315,'N':0,'NE':45,'E':90,'SE':135,'S':180,'SW':225,'W':270,'NW':315};
+
+// ── Toast ──
+let toastTimer=null;
+function showToast(msg, duration=3500){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'), duration);
+}
+
+// ── Haversine (client-side, for distance display) ──
+function haversine(lat1,lng1,lat2,lng2){
+  const R=6371000,toRad=d=>d*Math.PI/180;
+  const dLat=toRad(lat2-lat1),dLng=toRad(lng2-lng1);
+  const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// ── Update location card UI ──
+function updateLocationCard(result){
+  const icon    = document.getElementById('gpsIcon');
+  const coords  = document.getElementById('locCoords');
+  const status  = document.getElementById('locStatus');
+  const badge   = document.getElementById('nearestBadge');
+  const badgeTx = document.getElementById('nearestBadgeText');
+  const distTx  = document.getElementById('distText');
+
+  icon.className = 'gps-icon';
+  coords.textContent = `${userLat.toFixed(5)}°, ${userLng.toFixed(5)}°`;
+  status.textContent = 'GPS active — live tracking';
+  document.getElementById('locationSub').textContent = `${userLat.toFixed(4)}° N, ${userLng.toFixed(4)}° E`;
+
+  if(result){
+    badgeTx.textContent = result.name;
+    badge.className = 'nearest-badge' + (result.online ? '' : ' offline-node');
+    const km = result.distance_m >= 1000
+      ? (result.distance_m/1000).toFixed(1)+' km away'
+      : result.distance_m+'m away';
+    distTx.textContent = km;
+
+    // Update distance chips on node bar
+    if(result.all_nodes){
+      result.all_nodes.forEach(n => {
+        const el = document.getElementById('dist_'+n.id);
+        if(el) el.textContent = n.distance_m >= 1000
+          ? `· ${(n.distance_m/1000).toFixed(1)}km`
+          : `· ${n.distance_m}m`;
+      });
+    }
+  }
+}
+
+// ── Query /api/nearest and switch active node if needed ──
+async function fetchNearest(){
+  if(userLat===null || userLng===null) return;
+  try{
+    const r = await fetch(`/api/nearest?lat=${userLat}&lng=${userLng}`);
+    if(!r.ok) return;
+    const data = await r.json();
+    updateLocationCard(data);
+
+    const newNode = data.nearest_node;
+    if(newNode !== nearestNode){
+      const oldName = S[nearestNode]?.name || nearestNode;
+      nearestNode = newNode;
+      highlightActiveNode();
+      // Reset hi/lo since we switched sources
+      tempHigh=-Infinity; tempLow=Infinity;
+      showToast(`📡 Switched to ${data.name} (${data.distance_m}m away)`);
+      document.getElementById('locationName').textContent = `EnviroNet · ${data.area}`;
+      // Immediately render latest data from the new node if we have it
+      if(S[newNode]?.latest) updateUI(S[newNode].latest);
+    }
+
+    // If we already have cached data for this node, update UI
+    if(S[newNode]?.latest) updateUI(S[newNode].latest);
+
+  } catch(e){ console.warn('nearest fetch failed', e); }
+}
+
+// ── Highlight the active node chip ──
+function highlightActiveNode(){
+  Object.keys(S).forEach(id=>{
+    const chip=document.getElementById('chip_'+id);
+    if(chip) chip.className='node-chip'+(id===nearestNode?' active-node':'');
+  });
+}
+
+// ── GPS ──
+function requestGPS(){
+  document.getElementById('gpsBtn').classList.add('hidden');
+  if(!navigator.geolocation){
+    document.getElementById('locCoords').textContent='GPS not supported';
+    document.getElementById('gpsIcon').className='gps-icon error';
+    return;
+  }
+  navigator.geolocation.watchPosition(
+    pos => {
+      const lat=pos.coords.latitude, lng=pos.coords.longitude;
+      userLat=lat; userLng=lng;
+      gpsActive=true;
+      document.getElementById('locationName').textContent='EnviroNet · Live';
+      fetchNearest(); // Immediate query
+      // Re-query every 15 s while GPS is live
+      clearInterval(nearestPollTimer);
+      nearestPollTimer=setInterval(fetchNearest, 15000);
+    },
+    err => {
+      const icon=document.getElementById('gpsIcon');
+      icon.className='gps-icon error';
+      document.getElementById('locCoords').textContent='Location unavailable';
+      document.getElementById('locStatus').textContent='Using default node (Node 1)';
+      document.getElementById('gpsBtn').classList.remove('hidden');
+      // Still show node 1 data
+      highlightActiveNode();
+    },
+    { enableHighAccuracy:true, timeout:10000 }
+  );
+}
+
+// Auto-start GPS on page load
+requestGPS();
+
+// ── Sparkline ──
+function spark(id,data,color='#7eb8f7'){
+  const svg=document.getElementById(id);
+  if(!svg||data.length<2) return;
+  const mn=Math.min(...data)-0.1, mx=Math.max(...data)+0.1, rg=mx-mn||1;
+  const w=100,h=28;
+  const pts=data.map((v,i)=>`${i/(data.length-1)*w},${h-((v-mn)/rg)*(h-4)+2}`).join(' ');
+  svg.innerHTML=`<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.7"/>`;
+}
+
+// ── Clock ──
+function updateTime(){
+  document.getElementById('timeLbl').textContent=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+}
+setInterval(updateTime,1000); updateTime();
+
+// ── Render sensor data ──
+function updateUI(d){
+  if(!d) return;
+
+  const temp      = parseFloat(d.temperature);
+  const hum       = parseFloat(d.humidity);
+  const pres      = parseFloat(d.pressure)||0;
+  const alt       = parseFloat(d.altitude)||0;
+  const aqiRaw    = parseInt(d.air_quality_adc)||0;
+  const wind      = parseFloat(d.wind_speed_mps)||0;
+  const rainRaw   = parseInt(d.rain_raw)||0;
+  const rainStat  = d.rain_status||'unknown';
+  const light     = parseInt(d.light_level)||0;
+  const batt      = parseFloat(d.battery_voltage)||0;
+ const windDirStr = d.wind_dir_label || d.wind_direction || d.wind_dir || "--";
+ const windDirDeg = Number(d.wind_dir_deg);
+
+document.getElementById('windDir').textContent = windDirStr;
+
+  // Hero
+  if(!isNaN(temp)){
+    document.getElementById('heroTemp').innerHTML=`${temp.toFixed(1)}<sup>°C</sup>`;
+    if(temp>tempHigh) tempHigh=temp;
+    if(temp<tempLow)  tempLow=temp;
+    document.getElementById('stTemp').textContent=temp.toFixed(1);
+    const feels=(temp-(0.4*(temp-10)*(1-hum/100))).toFixed(1);
+    document.getElementById('heroFeels').textContent=`Feels like ${feels}°C`;
+  }
+  if(!isNaN(hum)){
+    document.getElementById('heroHum').textContent=Math.round(hum);
+    document.getElementById('stHum').textContent=Math.round(hum);
+  }
+  if(tempHigh>-Infinity) document.getElementById('heroHL').textContent=`H ${tempHigh.toFixed(1)}° / L ${tempLow.toFixed(1)}°`;
+  document.getElementById('heroCond').textContent=temp>35?'Hot & Humid':temp>28?'Warm':'Pleasant';
+
+  // Quick stats
+  if(pres>0){ document.getElementById('qPres').textContent=Math.round(pres); document.getElementById('stPres').textContent=Math.round(pres); }
+  if(wind>=0){ document.getElementById('qWind').textContent=wind.toFixed(1); document.getElementById('stWind').textContent=wind.toFixed(1); }
+  if(light>0) document.getElementById('qLight').textContent=light;
+  if(batt>0)  document.getElementById('qBatt').textContent=batt.toFixed(1);
+
+  // AQI
+  if(aqiRaw>0){
+    const lvl=getAQI(aqiRaw);
+    document.getElementById('aqiNum').textContent=aqiRaw;
+    document.getElementById('aqiNum').style.color=lvl.color;
+    document.getElementById('aqiStatus').textContent=lvl.label;
+    document.getElementById('aqiStatus').style.color=lvl.color;
+    document.getElementById('aqiDesc').textContent=lvl.desc;
+    const pct=Math.min(aqiRaw/500*100,100);
+    const cur=document.getElementById('aqiCursor');
+    cur.style.left=pct+'%'; cur.style.color=lvl.color;
+    document.getElementById('stAqi').textContent=aqiRaw;
+  }
+
+  // Wind
+  if (!isNaN(windDirDeg)) {
+  document.getElementById('windArrow').style.transform =
+    `rotate(${windDirDeg}deg)`;
+}
+
+  // Rain
+  const rainBars=document.querySelectorAll('.rain-bar');
+  const rPct=Math.min((4095-rainRaw)/4095*100,100);
+  rainBars.forEach((b,i)=>{ b.style.height=Math.max(8,(rPct*(i%3===0?1:i%3===1?0.7:0.9)))+'px'; });
+  document.getElementById('rainRaw').textContent=rainRaw||'—';
+  const badge=document.getElementById('rainBadge');
+  if(rainStat==='heavy'){ badge.className='rain-status-badge rain-heavy'; badge.textContent='⬤ Heavy rain'; }
+  else if(rainStat==='light'){ badge.className='rain-status-badge rain-light'; badge.textContent='⬤ Light rain'; }
+  else { badge.className='rain-status-badge rain-dry'; badge.textContent='⬤ Dry'; }
+
+  // Light
+  if(light>0){
+    document.getElementById('lightVal').textContent=light;
+    document.getElementById('ldrCursor').style.left=Math.min(light/4095*100,100)+'%';
+    document.getElementById('lightDesc').textContent=light<200?'Dark':light<800?'Dim':light<2000?'Indoor light':light<3000?'Bright':'Full sunlight';
+  }
+
+  // Pressure arc
+  if(pres>0){
+    const pPct=Math.min(Math.max((pres-950)/100,0),1);
+    document.getElementById('presArc').style.strokeDashoffset=220-(pPct*220);
+    document.getElementById('presVal').textContent=Math.round(pres);
+    document.getElementById('presTrend').textContent=pres>1013?'High pressure':'Low pressure';
+  }
+
+  // Altitude
+  if(alt>0){ document.getElementById('altVal').textContent=Math.round(alt); document.getElementById('altBar').style.width=Math.min(alt/500*100,100)+'%'; }
+
+  // Battery
+  if(batt>0){
+    document.getElementById('battVal').textContent=batt.toFixed(1);
+    const bPct=Math.min(Math.max((batt-3.2)/5.2*100,0),100);
+    const bBar=document.getElementById('battBar');
+    bBar.style.width=bPct+'%'; bBar.style.background=bPct>60?'#4ade80':bPct>30?'#fbbf24':'#f87171';
+    document.getElementById('battPct').textContent=Math.round(bPct)+'%';
+    document.getElementById('battDesc').textContent=bPct>80?'Excellent':bPct>50?'Good':bPct>20?'Low':'Critical';
+  }
+
+  // History
+  const t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  if(!isNaN(temp)) history.temp.push(temp);
+  if(!isNaN(hum))  history.hum.push(hum);
+  if(aqiRaw>0)     history.aqi.push(aqiRaw);
+  if(wind>=0)      history.wind.push(wind);
+  if(pres>0)       history.pres.push(pres);
+  history.labels.push(t);
+  const MAX=60;
+  ['temp','hum','aqi','wind','pres','labels'].forEach(k=>{ if(history[k].length>MAX) history[k].shift(); });
+
+  // Sparklines
+  spark('spTemp',history.temp,'#e06d5a');
+  spark('spHum', history.hum, '#4a9fd9');
+  spark('spAqi', history.aqi, '#fbbf24');
+  spark('spWind',history.wind,'#c9f23a');
+  spark('spPres',history.pres,'#7eb8f7');
+
+  updateChartData();
+}
+
+// ── Node LED + chip update ──
+function updateNodeLEDs(){
+  Object.keys(S).forEach(id=>{
+    const led=document.getElementById('led_'+id);
+    const nr =document.getElementById('nr_'+id);
+    const d  =S[id];
+    if(led) led.className='node-led '+(d.online?'on':'off');
+    if(nr && d.latest){ const t=d.latest.temperature; nr.textContent=t!=null?` ${parseFloat(t).toFixed(1)}°C`:''; }
+  });
+  highlightActiveNode();
+}
+
+// ── Chart ──
+function initChart(){
+  const ctx=document.getElementById('histChart').getContext('2d');
+  histChart=new Chart(ctx,{
+    type:'line',
+    data:{ labels:[], datasets:[{ label:'', data:[], borderColor:'#7eb8f7', backgroundColor:'#7eb8f710', borderWidth:2, fill:true, tension:0.4, pointRadius:0, pointHoverRadius:4 }]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#0d1b3e', titleColor:'#e8f0fe', bodyColor:'#8eafd4', borderColor:'#ffffff18', borderWidth:1 }},
+      scales:{
+        x:{ grid:{color:'#ffffff08'}, ticks:{color:'#8eafd4',font:{size:10},maxTicksLimit:8}},
+        y:{ grid:{color:'#ffffff08'}, ticks:{color:'#8eafd4',font:{size:10}}},
+      },
+      animation:{duration:400}
+    }
+  });
+}
+
+function updateChartData(){
+  if(!histChart) return;
+  const colors={temp:'#e06d5a',hum:'#4a9fd9',aqi:'#fbbf24',wind:'#c9f23a',pres:'#7eb8f7'};
+  const data=history[chartMetric]||[];
+  histChart.data.labels=history.labels.slice(-data.length);
+  histChart.data.datasets[0].data=data;
+  histChart.data.datasets[0].borderColor=colors[chartMetric];
+  histChart.data.datasets[0].backgroundColor=colors[chartMetric]+'15';
+  histChart.update('none');
+}
+
+function setChart(metric,btn){
+  chartMetric=metric;
+  document.querySelectorAll('.ctab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  const labels={temp:'Temperature history',hum:'Humidity history',aqi:'AQI history',wind:'Wind speed history',pres:'Pressure history'};
+  document.getElementById('chartTitle').textContent=labels[metric]||'History';
+  updateChartData();
+}
+
+// ── WebSocket ──
+function connectWS(){
+  const proto=location.protocol==='https:'?'wss':'ws';
+  let ws;
+  try{ ws=new WebSocket(`${proto}://${location.host}`); } catch(e){ return; }
+
+  ws.onopen=()=>{
+    const dot=document.getElementById('wsDot');
+    dot.className='ws-dot';
+    document.getElementById('wsLbl').textContent='Live';
+  };
+
+  ws.onclose=()=>{
+    document.getElementById('wsDot').className='ws-dot off';
+    document.getElementById('wsLbl').textContent='Reconnecting…';
+    setTimeout(connectWS,5000);
+  };
+
+  ws.onmessage=evt=>{
+    const msg=JSON.parse(evt.data);
+
+    if(msg.type==='reading'){
+      const id=msg.data.node_id;
+      if(S[id]!==undefined){
+        S[id].latest=msg.data;
+        S[id].online=true;
+        // Show this reading only if it's from the current nearest node
+        if(id===nearestNode) updateUI(msg.data);
+        updateNodeLEDs();
+      }
+    }
+
+    else if(msg.type==='init'){
+      // Populate cached state for all nodes
+      Object.keys(msg.history||{}).forEach(id=>{
+        const arr=msg.history[id]||[];
+        if(arr.length>0){
+          S[id].online=true;
+          S[id].latest=arr[arr.length-1];
+        }
+      });
+      // Update node names from server locations
+      if(msg.locations){
+        Object.keys(msg.locations).forEach(id=>{
+          if(S[id]) S[id].name=msg.locations[id].name;
+          const nameEl=document.getElementById('name_'+id);
+          if(nameEl) nameEl.textContent=msg.locations[id].name;
+        });
+      }
+      // Render history for nearest node
+      const arr=msg.history?.[nearestNode]||[];
+      if(arr.length>0) arr.forEach(r=>updateUI(r));
+      updateNodeLEDs();
+    }
+
+    else if(msg.type==='status'){
+      if(S[msg.node_id]) S[msg.node_id].online=msg.online;
+      updateNodeLEDs();
+      // If our current node just went offline, check if we should switch
+      if(msg.node_id===nearestNode && !msg.online && userLat!==null){
+        fetchNearest();
+      }
+    }
+  };
+}
+
+// ── Offline watchdog ──
+setInterval(()=>{
+  Object.keys(S).forEach(id=>{
+    const d=S[id].latest;
+    if(d?.server_timestamp && Date.now()-d.server_timestamp>12000){
+      S[id].online=false; updateNodeLEDs();
+    }
+  });
+},6000);
+
+// ── Map Management ──
+let mapInstance = null;
+let mapMarker = null;
+let mapWatchId = null;
+const nodeMapLayers = {}; // stores { circle, marker } per node id
+
+// Returns AQI colour from the existing AQI_LEVELS table
+function aqiColorForValue(v){
+  if(v === null || v === undefined || isNaN(v)) return '#7eb8f7'; // default blue = unknown
+  const level = getAQI(v);
+  return level.color;
+}
+
+// Build the SVG globe icon for a node
+function makeGlobeIcon(color, label){
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="42" height="52" viewBox="0 0 42 52">
+    <defs>
+      <radialGradient id="g_${label}" cx="38%" cy="35%" r="60%">
+        <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+        <stop offset="100%" stop-color="${color}" stop-opacity="1"/>
+      </radialGradient>
+      <filter id="sh_${label}" x="-40%" y="-40%" width="180%" height="180%">
+        <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="${color}" flood-opacity="0.7"/>
+      </filter>
+    </defs>
+    <!-- pin stem -->
+    <line x1="21" y1="38" x2="21" y2="51" stroke="${color}" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+    <!-- globe body -->
+    <circle cx="21" cy="19" r="16" fill="url(#g_${label})" filter="url(#sh_${label})"/>
+    <!-- latitude lines -->
+    <ellipse cx="21" cy="19" rx="16" ry="6" fill="none" stroke="#ffffff" stroke-width="0.8" stroke-opacity="0.35"/>
+    <ellipse cx="21" cy="19" rx="16" ry="11" fill="none" stroke="#ffffff" stroke-width="0.8" stroke-opacity="0.2"/>
+    <!-- longitude line -->
+    <ellipse cx="21" cy="19" rx="7" ry="16" fill="none" stroke="#ffffff" stroke-width="0.8" stroke-opacity="0.35"/>
+    <!-- highlight glint -->
+    <circle cx="15" cy="13" r="3.5" fill="#ffffff" opacity="0.28"/>
+    <!-- node label -->
+    <text x="21" y="23" text-anchor="middle" font-size="9" font-family="DM Sans,sans-serif" font-weight="700" fill="#ffffff" opacity="0.95">${label}</text>
+  </svg>`;
+  return L.divIcon({
+    html: svg,
+    className: '',
+    iconSize: [42, 52],
+    iconAnchor: [21, 51],
+    popupAnchor: [0, -52]
+  });
+}
+
+// Add / refresh node markers and radius circles on the map
+function renderNodeMarkers(){
+  Object.keys(NODE_LOCATIONS).forEach(id => {
+    const loc = NODE_LOCATIONS[id];
+    const nodeState = S[id];
+    const aqiVal = nodeState?.latest?.aqi ?? null;
+    const color = aqiColorForValue(aqiVal);
+    const shortLabel = id === 'node_1' ? 'N1' : 'N2';
+
+    // ── Radius circle ──
+    if(nodeMapLayers[id]?.circle){
+      nodeMapLayers[id].circle.remove();
+    }
+    const circle = L.circle([loc.lat, loc.lng], {
+      radius: loc.radius,
+      color: color,
+      weight: 1.5,
+      opacity: 0.7,
+      fillColor: color,
+      fillOpacity: 0.08,
+      dashArray: '6 4'
+    }).addTo(mapInstance);
+
+    // ── Globe marker ──
+    if(nodeMapLayers[id]?.marker){
+      nodeMapLayers[id].marker.remove();
+    }
+    const aqiLevel = aqiVal !== null ? getAQI(aqiVal) : null;
+    const popupContent =
+      `<div style="background:#0d1b3e;color:#e8f0fe;padding:10px 14px;border-radius:10px;border:1px solid ${color}40;min-width:160px;font-family:'DM Sans',sans-serif">` +
+        `<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:${color}">${loc.name}</div>` +
+        `<div style="font-size:11px;color:#8eafd4;margin-bottom:4px">${loc.area}</div>` +
+        `<div style="display:flex;align-items:center;gap:6px;margin-top:6px">` +
+          `<div style="width:10px;height:10px;border-radius:50%;background:${nodeState?.online ? '#4ade80' : '#f87171'};box-shadow:0 0 6px currentColor"></div>` +
+          `<span style="font-size:11px">${nodeState?.online ? 'Online' : 'Offline'}</span>` +
+        `</div>` +
+        (aqiVal !== null
+          ? `<div style="margin-top:8px;padding:6px 10px;border-radius:8px;background:${color}18;border:1px solid ${color}40;text-align:center">` +
+              `<span style="font-size:20px;font-weight:700;color:${color}">${Math.round(aqiVal)}</span>` +
+              `<span style="font-size:10px;color:#8eafd4;margin-left:4px">AQI</span>` +
+              `<div style="font-size:11px;color:${color};margin-top:2px">${aqiLevel.label}</div>` +
+            `</div>`
+          : `<div style="margin-top:6px;font-size:11px;color:#8eafd4">AQI: awaiting data</div>`
+        ) +
+        `<div style="margin-top:6px;font-size:10px;color:#8eafd4">Radius: ${loc.radius} m</div>` +
+      `</div>`;
+
+    const marker = L.marker([loc.lat, loc.lng], {
+      icon: makeGlobeIcon(color, shortLabel),
+      zIndexOffset: 500
+    }).addTo(mapInstance);
+    marker.bindPopup(popupContent, { closeButton: false, maxWidth: 200 });
+
+    // Subtle pulse animation via CSS on the circle
+    circle.on('add', () => {
+      const el = circle.getElement();
+      if(el) el.style.transition = 'opacity 1s ease-in-out';
+    });
+
+    nodeMapLayers[id] = { circle, marker };
+  });
+}
+
+function initMap(){
+  // Initialize Leaflet map — center between the two nodes
+  const midLat = (NODE_LOCATIONS.node_1.lat + NODE_LOCATIONS.node_2.lat) / 2;
+  const midLng = (NODE_LOCATIONS.node_1.lng + NODE_LOCATIONS.node_2.lng) / 2;
+  const mapContainer = document.getElementById('mapContainer');
+  mapInstance = L.map(mapContainer).setView([midLat, midLng], 16);
+
+  // Add OpenStreetMap tile layer
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 19,
+    tileSize: 256
+  }).addTo(mapInstance);
+
+  // Draw node globes + radius zones
+  renderNodeMarkers();
+
+  // Refresh node markers whenever AQI data updates (every 10 s)
+  setInterval(renderNodeMarkers, 10000);
+
+  // Start watching user location
+  if(navigator.geolocation){
+    mapWatchId = navigator.geolocation.watchPosition(
+      position => updateMapLocation(position),
+      error => handleMapError(error),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  } else {
+    updateMapStatus('Geolocation not supported', false);
+  }
+
+  // Recenter button
+  const recenterBtn = document.getElementById('mapRecenterBtn');
+  if(recenterBtn){
+    recenterBtn.addEventListener('click', () => {
+      if(userLat !== null && userLng !== null){
+        mapInstance.setView([userLat, userLng], 16);
+      } else {
+        mapInstance.setView([midLat, midLng], 16);
+      }
+    });
+  }
+}
+
+function updateMapLocation(position){
+  const { latitude, longitude, accuracy, altitude } = position.coords;
+
+  userLat = latitude;
+  userLng = longitude;
+
+  document.getElementById('mapLat').textContent = latitude.toFixed(6);
+  document.getElementById('mapLng').textContent = longitude.toFixed(6);
+  document.getElementById('mapAccuracy').textContent = Math.round(accuracy) + ' m';
+  document.getElementById('mapAltitude').textContent = altitude ? Math.round(altitude) + ' m' : '—';
+
+  if(mapInstance){
+    if(mapMarker){
+      mapMarker.setLatLng([latitude, longitude]);
+    } else {
+      mapMarker = L.circleMarker([latitude, longitude], {
+        radius: 8,
+        fillColor: '#7eb8f7',
+        color: '#a8d4ff',
+        weight: 3,
+        opacity: 1,
+        fillOpacity: 0.8
+      }).addTo(mapInstance);
+      mapMarker.bindPopup(
+        '<div style="background:#0d1b3e;color:#e8f0fe;padding:8px;border-radius:8px;border:1px solid #7eb8f740;">' +
+        '<div style="font-weight:600;margin-bottom:4px;">Your Location</div>' +
+        '<div style="font-size:12px;">Lat: ' + latitude.toFixed(6) + '</div>' +
+        '<div style="font-size:12px;">Lng: ' + longitude.toFixed(6) + '</div>' +
+        '</div>', { closeButton: false }
+      );
+    }
+  }
+
+  updateMapStatus('GPS active', true);
+}
+
+function handleMapError(error){
+  let message = 'Location access denied';
+  if(error.code === error.PERMISSION_DENIED) message = 'GPS permission denied';
+  else if(error.code === error.POSITION_UNAVAILABLE) message = 'GPS position unavailable';
+  else if(error.code === error.TIMEOUT) message = 'GPS request timeout';
+  updateMapStatus(message, false);
+}
+
+function updateMapStatus(text, active){
+  const status = document.getElementById('mapStatus');
+  const statusText = document.getElementById('mapStatusText');
+  statusText.textContent = text;
+  status.className = active ? 'map-status active' : 'map-status';
+}
+
+// ── Boot ──
+initChart();
+highlightActiveNode();
+connectWS();
+
+// Initialize map on page load
+document.addEventListener('DOMContentLoaded', ()=>{
+  setTimeout(initMap, 100);
+});
+</script>
+</body>
+</html>
