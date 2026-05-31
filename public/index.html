@@ -222,44 +222,147 @@ body{
 /* ── Map container ── */
 #mapContainer{
   width:100%;
-  height:350px;
-  border-radius:16px;
+  height:420px;
+  border-radius:20px;
   overflow:hidden;
-  border:1px solid var(--border);
+  border:1px solid #ffffff22;
   margin-bottom:12px;
-  backdrop-filter:blur(16px);
   position:relative;
+  box-shadow:0 8px 32px #00000060, 0 0 0 1px #ffffff08 inset;
 }
-#map{
-  width:100%;
-  height:100%;
+
+/* Override Leaflet attribution to match theme */
+.leaflet-control-attribution{
+  background:#0d1b3ecc !important;
+  color:#8eafd4 !important;
+  font-size:10px !important;
+  border-radius:8px 0 0 0 !important;
+  padding:3px 8px !important;
+  backdrop-filter:blur(8px);
 }
-.map-recenter-btn{
+.leaflet-control-attribution a{ color:#7eb8f7 !important; }
+
+/* Zoom controls */
+.leaflet-control-zoom{
+  border:none !important;
+  box-shadow:0 4px 16px #00000060 !important;
+}
+.leaflet-control-zoom a{
+  background:#0d1b3eee !important;
+  color:#a8d4ff !important;
+  border:1px solid #ffffff18 !important;
+  font-size:16px !important;
+  line-height:30px !important;
+  width:30px !important;
+  height:30px !important;
+  backdrop-filter:blur(12px);
+  transition:background .2s !important;
+}
+.leaflet-control-zoom a:hover{
+  background:#1a3560ff !important;
+  color:#fff !important;
+}
+.leaflet-control-zoom-in{ border-radius:10px 10px 0 0 !important; }
+.leaflet-control-zoom-out{ border-radius:0 0 10px 10px !important; }
+
+/* Map overlay controls tray */
+.map-controls-tray{
   position:absolute;
   bottom:16px;
   right:16px;
-  width:44px;
-  height:44px;
-  border-radius:50%;
-  background:#1a3560ee;
-  border:1px solid #7eb8f740;
-  color:var(--accent2);
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  z-index:1000;
+}
+.map-ctrl-btn{
+  width:40px;
+  height:40px;
+  border-radius:12px;
+  background:#0d1b3eee;
+  border:1px solid #ffffff22;
+  color:#a8d4ff;
   cursor:pointer;
   display:flex;
   align-items:center;
   justify-content:center;
-  font-size:20px;
-  transition:background .2s,transform .2s;
-  z-index:10;
+  transition:background .2s, transform .15s, box-shadow .2s;
   backdrop-filter:blur(16px);
+  box-shadow:0 4px 14px #00000050;
 }
-.map-recenter-btn:hover{
-  background:#1a3560ff;
-  transform:scale(1.1);
+.map-ctrl-btn:hover{
+  background:#1a3a6bee;
+  color:#fff;
+  transform:scale(1.08);
+  box-shadow:0 6px 20px #00000060;
 }
-.map-recenter-btn:active{
-  transform:scale(0.95);
+.map-ctrl-btn:active{ transform:scale(0.94); }
+.map-ctrl-btn svg{ width:18px; height:18px; }
+
+/* Node legend pill */
+.map-legend{
+  position:absolute;
+  top:14px;
+  left:14px;
+  z-index:1000;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
 }
+.map-legend-pill{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  background:#0d1b3eee;
+  border:1px solid #ffffff18;
+  border-radius:20px;
+  padding:5px 11px 5px 8px;
+  font-size:11px;
+  color:#e8f0fe;
+  backdrop-filter:blur(12px);
+  box-shadow:0 2px 10px #00000040;
+  font-family:'DM Sans',sans-serif;
+}
+.legend-dot{
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  flex-shrink:0;
+  box-shadow:0 0 6px currentColor;
+}
+
+/* Nearest-node connector line + distance tag */
+.nearest-tag{
+  background:#0d1b3eee;border:1px solid var(--nc,#7eb8f7);color:#e8f0fe;
+  font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;
+  padding:2px 9px;border-radius:20px;white-space:nowrap;
+  box-shadow:0 2px 10px #00000070;transform:translate(-50%,-50%);
+  backdrop-filter:blur(8px);letter-spacing:.2px;
+}
+.nearest-link{ animation:dash 0.9s linear infinite; }
+@keyframes dash{ to{ stroke-dashoffset:-22; } }
+
+/* GPS pulse ring on user marker */
+@keyframes gps-ring{
+  0%{transform:translate(-50%,-50%) scale(0.6);opacity:0.8}
+  100%{transform:translate(-50%,-50%) scale(2.2);opacity:0}
+}
+.user-dot-wrap{position:relative;width:20px;height:20px}
+.user-dot-ring{
+  position:absolute;top:50%;left:50%;
+  width:20px;height:20px;border-radius:50%;
+  border:2px solid #38bdf8;
+  animation:gps-ring 1.8s ease-out infinite;
+}
+.user-dot-inner{
+  position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:10px;height:10px;border-radius:50%;
+  background:#38bdf8;
+  border:2px solid #fff;
+  box-shadow:0 0 10px #38bdf8;
+}
+
 .map-info-box{
   background:var(--card);
   border:1px solid var(--border);
@@ -281,15 +384,8 @@ body{
   border-bottom:none;
   padding-bottom:0;
 }
-.map-info-label{
-  color:var(--muted);
-  font-weight:500;
-}
-.map-info-value{
-  color:var(--text);
-  font-weight:600;
-  font-family:'DM Serif Display',serif;
-}
+.map-info-label{ color:var(--muted); font-weight:500; }
+.map-info-value{ color:var(--text); font-weight:600; font-family:'DM Serif Display',serif; }
 .map-status{
   font-size:12px;
   display:flex;
@@ -300,16 +396,13 @@ body{
   padding-top:8px;
   border-top:1px solid var(--border);
 }
-.map-status.active{
-  color:var(--good);
-}
+.map-status.active{ color:var(--good); }
 .map-dot{
-  width:6px;
-  height:6px;
-  border-radius:50%;
-  background:currentColor;
-  box-shadow:0 0 8px currentColor;
+  width:6px;height:6px;border-radius:50%;
+  background:currentColor;box-shadow:0 0 8px currentColor;
 }
+/* hide old recenter btn style if leftover */
+.map-recenter-btn{ display:none !important; }
 
 /* ── Responsive ── */
 @media(max-width:640px){
@@ -511,12 +604,31 @@ body{
 
   <!-- Map Section -->
   <div style="margin-bottom:16px">
-    <div style="font-size:13px;font-weight:500;margin-bottom:12px">📍 Device Location Map</div>
+    <div style="font-size:13px;font-weight:500;margin-bottom:12px;display:flex;align-items:center;gap:7px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7eb8f7" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>
+      Node Coverage Map
+    </div>
     <div id="mapContainer">
-      <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--card)">
-        <div class="spinner"></div>
+      <!-- Node legend -->
+      <div class="map-legend" id="mapLegend">
+        <div class="map-legend-pill" id="legendN1">
+          <div class="legend-dot" style="background:#00e5ff;color:#00e5ff"></div>
+          Node 1 – Block A
+        </div>
+        <div class="map-legend-pill" id="legendN2">
+          <div class="legend-dot" style="background:#ff6bff;color:#ff6bff"></div>
+          Node 2 – Block B
+        </div>
       </div>
-      <button class="map-recenter-btn" id="mapRecenterBtn" title="Recenter on my location">📍</button>
+      <!-- Control tray -->
+      <div class="map-controls-tray">
+        <button class="map-ctrl-btn" id="mapRecenterBtn" title="Re-centre on my location">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/><circle cx="12" cy="12" r="9" stroke-opacity="0.3"/></svg>
+        </button>
+        <button class="map-ctrl-btn" id="mapFitBtn" title="Fit both nodes in view">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
+        </button>
+      </div>
     </div>
     <div class="map-info-box">
       <div class="map-info-row">
@@ -548,8 +660,9 @@ body{
 <script>
 // ═══════════════════════════════════════════════════════════
 //  EnviroNet — Location-Aware Frontend
-//  Fetches /api/nearest with user's GPS to pick nearest node.
-//  Falls back to node_1 if GPS unavailable.
+//  Computes the nearest node CLIENT-SIDE from the user's live GPS
+//  (haversine over NODE_LOCATIONS) — no server endpoint required.
+//  Prefers online nodes; falls back to node_1 if GPS is unavailable.
 // ═══════════════════════════════════════════════════════════
 
 // ── Stars ──
@@ -652,32 +765,57 @@ function updateLocationCard(result){
   }
 }
 
-// ── Query /api/nearest and switch active node if needed ──
-async function fetchNearest(){
+// ── Format a distance in metres nicely ──
+function fmtDist(m){ return m>=1000 ? (m/1000).toFixed(2)+' km' : Math.round(m)+' m'; }
+
+// ── Compute nearest node entirely client-side (no server dependency) ──
+//    Prefers ONLINE nodes; only falls back to an offline node if none are online.
+function computeNearestNode(){
+  if(userLat===null || userLng===null) return null;
+  const list = Object.keys(NODE_LOCATIONS).map(id => {
+    const loc = NODE_LOCATIONS[id];
+    return {
+      id, name: loc.name, area: loc.area,
+      online: !!(S[id] && S[id].online),
+      distance_m: Math.round(haversine(userLat, userLng, loc.lat, loc.lng)),
+    };
+  });
+  const online = list.filter(n => n.online);
+  const pool = online.length ? online : list;          // prefer reachable nodes
+  pool.sort((a,b) => a.distance_m - b.distance_m);
+  const nearest = pool[0];
+  const all_sorted = [...list].sort((a,b) => a.distance_m - b.distance_m);
+  return {
+    nearest_node: nearest.id,
+    name: nearest.name,
+    area: nearest.area,
+    online: nearest.online,
+    distance_m: nearest.distance_m,
+    all_nodes: all_sorted,
+  };
+}
+
+// ── Recompute nearest, update the card, switch active node, redraw map link ──
+function fetchNearest(){
   if(userLat===null || userLng===null) return;
-  try{
-    const r = await fetch(`/api/nearest?lat=${userLat}&lng=${userLng}`);
-    if(!r.ok) return;
-    const data = await r.json();
-    updateLocationCard(data);
+  const result = computeNearestNode();
+  if(!result) return;
+  updateLocationCard(result);
 
-    const newNode = data.nearest_node;
-    if(newNode !== nearestNode){
-      const oldName = S[nearestNode]?.name || nearestNode;
-      nearestNode = newNode;
-      highlightActiveNode();
-      // Reset hi/lo since we switched sources
-      tempHigh=-Infinity; tempLow=Infinity;
-      showToast(`📡 Switched to ${data.name} (${data.distance_m}m away)`);
-      document.getElementById('locationName').textContent = `EnviroNet · ${data.area}`;
-      // Immediately render latest data from the new node if we have it
-      if(S[newNode]?.latest) updateUI(S[newNode].latest);
-    }
+  const newNode = result.nearest_node;
+  if(newNode !== nearestNode){
+    nearestNode = newNode;
+    highlightActiveNode();
+    tempHigh=-Infinity; tempLow=Infinity;     // reset hi/lo on source switch
+    showToast(`📡 Switched to ${result.name} (${fmtDist(result.distance_m)} away)`);
+    document.getElementById('locationName').textContent = `EnviroNet · ${result.area}`;
+    if(S[newNode] && S[newNode].latest) updateUI(S[newNode].latest);
+  }
 
-    // If we already have cached data for this node, update UI
-    if(S[newNode]?.latest) updateUI(S[newNode].latest);
+  if(S[newNode] && S[newNode].latest) updateUI(S[newNode].latest);
 
-  } catch(e){ console.warn('nearest fetch failed', e); }
+  // Reflect the nearest relationship on the map
+  renderNearestLink();
 }
 
 // ── Highlight the active node chip ──
@@ -688,40 +826,55 @@ function highlightActiveNode(){
   });
 }
 
-// ── GPS ──
-function requestGPS(){
+// ── Unified GPS controller (single watch drives card + nearest + map) ──
+let gpsWatchId = null;
+let lastPosition = null;
+
+function startGPS(){
   document.getElementById('gpsBtn').classList.add('hidden');
   if(!navigator.geolocation){
     document.getElementById('locCoords').textContent='GPS not supported';
     document.getElementById('gpsIcon').className='gps-icon error';
+    updateMapStatus('Geolocation not supported on this device', false);
     return;
   }
-  navigator.geolocation.watchPosition(
-    pos => {
-      const lat=pos.coords.latitude, lng=pos.coords.longitude;
-      userLat=lat; userLng=lng;
-      gpsActive=true;
-      document.getElementById('locationName').textContent='EnviroNet · Live';
-      fetchNearest(); // Immediate query
-      // Re-query every 15 s while GPS is live
-      clearInterval(nearestPollTimer);
-      nearestPollTimer=setInterval(fetchNearest, 15000);
-    },
-    err => {
-      const icon=document.getElementById('gpsIcon');
-      icon.className='gps-icon error';
-      document.getElementById('locCoords').textContent='Location unavailable';
-      document.getElementById('locStatus').textContent='Using default node (Node 1)';
-      document.getElementById('gpsBtn').classList.remove('hidden');
-      // Still show node 1 data
-      highlightActiveNode();
-    },
-    { enableHighAccuracy:true, timeout:10000 }
+  // Never run two watches at once
+  if(gpsWatchId!==null){ navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId=null; }
+  document.getElementById('gpsIcon').className='gps-icon acquiring';
+  document.getElementById('locCoords').textContent='Requesting location…';
+  updateMapStatus('Requesting location…', false);
+  gpsWatchId = navigator.geolocation.watchPosition(
+    onPosition,
+    onGpsError,
+    { enableHighAccuracy:true, timeout:12000, maximumAge:2000 }
   );
 }
 
+// "Share my location" button still calls requestGPS()
+function requestGPS(){ startGPS(); }
+
+// Single position handler — feeds the card, nearest-node logic, and the map
+function onPosition(pos){
+  lastPosition = pos;
+  userLat = pos.coords.latitude;
+  userLng = pos.coords.longitude;
+  gpsActive = true;
+  document.getElementById('locationName').textContent='EnviroNet · Live';
+  fetchNearest();                 // client-side nearest + card + map link
+  updateMapFromPosition(pos);     // user marker + info box (guards if map not ready)
+}
+
+function onGpsError(err){
+  document.getElementById('gpsIcon').className='gps-icon error';
+  document.getElementById('locCoords').textContent='Location unavailable';
+  document.getElementById('locStatus').textContent='Using default node (Node 1)';
+  document.getElementById('gpsBtn').classList.remove('hidden');
+  highlightActiveNode();
+  handleMapError(err);
+}
+
 // Auto-start GPS on page load
-requestGPS();
+startGPS();
 
 // ── Sparkline ──
 function spark(id,data,color='#7eb8f7'){
@@ -988,207 +1141,348 @@ setInterval(()=>{
 // ── Map Management ──
 let mapInstance = null;
 let mapMarker = null;
+let mapAccCircle = null;
 let mapWatchId = null;
-const nodeMapLayers = {}; // stores { circle, marker } per node id
+const nodeMapLayers = {};
 
-// Returns AQI colour from the existing AQI_LEVELS table
+// Vibrant per-node brand colours (independent of AQI — always vivid)
+const NODE_COLOURS = {
+  node_1: { main:'#00e5ff', glow:'#00b8d9', fill:'#00e5ff' },  // electric cyan
+  node_2: { main:'#ff6bff', glow:'#cc00cc', fill:'#ff6bff' },  // vivid magenta
+};
+
+// AQI band colour (used inside popup only)
 function aqiColorForValue(v){
-  if(v === null || v === undefined || isNaN(v)) return '#7eb8f7'; // default blue = unknown
-  const level = getAQI(v);
-  return level.color;
+  if(v===null||v===undefined||isNaN(v)) return '#7eb8f7';
+  return getAQI(v).color;
 }
 
-// Build the SVG globe icon for a node
-function makeGlobeIcon(color, label){
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="42" height="52" viewBox="0 0 42 52">
+// SVG globe pin — uses the node's vibrant brand colour
+function makeGlobeIcon(nodeId, label){
+  const c = NODE_COLOURS[nodeId] || { main:'#7eb8f7', glow:'#4a9fd4', fill:'#7eb8f7' };
+  const uid = label + '_' + Date.now(); // unique so gradients don't clash
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60">
     <defs>
-      <radialGradient id="g_${label}" cx="38%" cy="35%" r="60%">
-        <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
-        <stop offset="100%" stop-color="${color}" stop-opacity="1"/>
+      <radialGradient id="rg_${uid}" cx="35%" cy="30%" r="65%">
+        <stop offset="0%" stop-color="#ffffff" stop-opacity="0.7"/>
+        <stop offset="55%" stop-color="${c.main}" stop-opacity="0.9"/>
+        <stop offset="100%" stop-color="${c.glow}" stop-opacity="1"/>
       </radialGradient>
-      <filter id="sh_${label}" x="-40%" y="-40%" width="180%" height="180%">
-        <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="${color}" flood-opacity="0.7"/>
+      <filter id="glow_${uid}" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="3" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="shadow_${uid}" x="-40%" y="-40%" width="180%" height="220%">
+        <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="${c.glow}" flood-opacity="0.8"/>
       </filter>
     </defs>
-    <!-- pin stem -->
-    <line x1="21" y1="38" x2="21" y2="51" stroke="${color}" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+    <!-- stem with glow -->
+    <line x1="24" y1="42" x2="24" y2="58" stroke="${c.main}" stroke-width="3" stroke-linecap="round" filter="url(#glow_${uid})" opacity="0.9"/>
+    <!-- outer glow ring -->
+    <circle cx="24" cy="22" r="20" fill="${c.main}" opacity="0.12"/>
     <!-- globe body -->
-    <circle cx="21" cy="19" r="16" fill="url(#g_${label})" filter="url(#sh_${label})"/>
-    <!-- latitude lines -->
-    <ellipse cx="21" cy="19" rx="16" ry="6" fill="none" stroke="#ffffff" stroke-width="0.8" stroke-opacity="0.35"/>
-    <ellipse cx="21" cy="19" rx="16" ry="11" fill="none" stroke="#ffffff" stroke-width="0.8" stroke-opacity="0.2"/>
-    <!-- longitude line -->
-    <ellipse cx="21" cy="19" rx="7" ry="16" fill="none" stroke="#ffffff" stroke-width="0.8" stroke-opacity="0.35"/>
-    <!-- highlight glint -->
-    <circle cx="15" cy="13" r="3.5" fill="#ffffff" opacity="0.28"/>
-    <!-- node label -->
-    <text x="21" y="23" text-anchor="middle" font-size="9" font-family="DM Sans,sans-serif" font-weight="700" fill="#ffffff" opacity="0.95">${label}</text>
+    <circle cx="24" cy="22" r="17" fill="url(#rg_${uid})" filter="url(#shadow_${uid})"/>
+    <!-- equator -->
+    <ellipse cx="24" cy="22" rx="17" ry="6.5" fill="none" stroke="#ffffff" stroke-width="0.9" stroke-opacity="0.4"/>
+    <!-- upper parallel -->
+    <ellipse cx="24" cy="16" rx="13" ry="4" fill="none" stroke="#ffffff" stroke-width="0.7" stroke-opacity="0.25"/>
+    <!-- prime meridian -->
+    <ellipse cx="24" cy="22" rx="8" ry="17" fill="none" stroke="#ffffff" stroke-width="0.9" stroke-opacity="0.35"/>
+    <!-- glint -->
+    <circle cx="17" cy="14" r="4" fill="#ffffff" opacity="0.30"/>
+    <circle cx="15" cy="13" r="1.8" fill="#ffffff" opacity="0.55"/>
+    <!-- label -->
+    <text x="24" y="26.5" text-anchor="middle" font-size="10" font-family="DM Sans,sans-serif" font-weight="800" fill="#ffffff" paint-order="stroke" stroke="#00000033" stroke-width="2">${label}</text>
   </svg>`;
-  return L.divIcon({
-    html: svg,
-    className: '',
-    iconSize: [42, 52],
-    iconAnchor: [21, 51],
-    popupAnchor: [0, -52]
-  });
+  return L.divIcon({ html: svg, className:'', iconSize:[48,60], iconAnchor:[24,58], popupAnchor:[0,-58] });
 }
 
-// Add / refresh node markers and radius circles on the map
+// Build popup HTML for a node
+function makeNodePopup(id, loc, nodeState, aqiVal){
+  const c = NODE_COLOURS[id] || { main:'#7eb8f7' };
+  const aqiColor = aqiColorForValue(aqiVal);
+  const aqiLevel = aqiVal !== null ? getAQI(aqiVal) : null;
+  const online = nodeState?.online;
+  return `<div style="background:#0d1b3e;color:#e8f0fe;padding:12px 15px;border-radius:12px;border:1px solid ${c.main}40;min-width:170px;font-family:'DM Sans',sans-serif;box-shadow:0 4px 20px #000000a0">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="width:10px;height:10px;border-radius:50%;background:${c.main};box-shadow:0 0 8px ${c.main};flex-shrink:0"></div>
+      <span style="font-weight:700;font-size:13px;color:${c.main}">${loc.name}</span>
+    </div>
+    <div style="font-size:11px;color:#8eafd4;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #ffffff12">${loc.area} &nbsp;·&nbsp; r = ${loc.radius} m</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:${aqiVal!==null?'8':'0'}px">
+      <div style="width:8px;height:8px;border-radius:50%;background:${online?'#4ade80':'#f87171'}"></div>
+      <span style="font-size:11px;color:${online?'#4ade80':'#f87171'}">${online?'Online':'Offline'}</span>
+    </div>
+    ${aqiVal!==null
+      ? `<div style="padding:7px 10px;border-radius:9px;background:${aqiColor}18;border:1px solid ${aqiColor}40;text-align:center">
+           <span style="font-size:22px;font-weight:800;color:${aqiColor}">${Math.round(aqiVal)}</span>
+           <span style="font-size:10px;color:#8eafd4;margin-left:3px">AQI</span>
+           <div style="font-size:11px;color:${aqiColor};margin-top:1px;font-weight:600">${aqiLevel.label}</div>
+         </div>`
+      : `<div style="font-size:11px;color:#8eafd4">AQI awaiting data…</div>`
+    }
+  </div>`;
+}
+
+// Render / refresh node globe markers + radius circles
 function renderNodeMarkers(){
+  if(!mapInstance) return;
   Object.keys(NODE_LOCATIONS).forEach(id => {
     const loc = NODE_LOCATIONS[id];
     const nodeState = S[id];
-    const aqiVal = nodeState?.latest?.aqi ?? null;
-    const color = aqiColorForValue(aqiVal);
+    const aqiVal = (nodeState?.latest?.air_quality_adc ?? nodeState?.latest?.aqi) ?? null;
+    const c = NODE_COLOURS[id] || { main:'#7eb8f7', glow:'#4a9fd4' };
     const shortLabel = id === 'node_1' ? 'N1' : 'N2';
 
-    // ── Radius circle ──
-    if(nodeMapLayers[id]?.circle){
-      nodeMapLayers[id].circle.remove();
-    }
+    // Remove old layers
+    nodeMapLayers[id]?.circle?.remove();
+    nodeMapLayers[id]?.outerRing?.remove();
+    nodeMapLayers[id]?.marker?.remove();
+
+    // Outer faint ring (wider halo effect)
+    const outerRing = L.circle([loc.lat, loc.lng], {
+      radius: loc.radius * 1.18,
+      color: c.main,
+      weight: 1,
+      opacity: 0.18,
+      fillColor: c.main,
+      fillOpacity: 0.03,
+      interactive: false,
+    }).addTo(mapInstance);
+
+    // Main radius circle — vivid dashed border
     const circle = L.circle([loc.lat, loc.lng], {
       radius: loc.radius,
-      color: color,
-      weight: 1.5,
-      opacity: 0.7,
-      fillColor: color,
-      fillOpacity: 0.08,
-      dashArray: '6 4'
+      color: c.main,
+      weight: 2,
+      opacity: 0.85,
+      fillColor: c.fill,
+      fillOpacity: 0.07,
+      dashArray: '8 5',
     }).addTo(mapInstance);
 
-    // ── Globe marker ──
-    if(nodeMapLayers[id]?.marker){
-      nodeMapLayers[id].marker.remove();
-    }
-    const aqiLevel = aqiVal !== null ? getAQI(aqiVal) : null;
-    const popupContent =
-      `<div style="background:#0d1b3e;color:#e8f0fe;padding:10px 14px;border-radius:10px;border:1px solid ${color}40;min-width:160px;font-family:'DM Sans',sans-serif">` +
-        `<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:${color}">${loc.name}</div>` +
-        `<div style="font-size:11px;color:#8eafd4;margin-bottom:4px">${loc.area}</div>` +
-        `<div style="display:flex;align-items:center;gap:6px;margin-top:6px">` +
-          `<div style="width:10px;height:10px;border-radius:50%;background:${nodeState?.online ? '#4ade80' : '#f87171'};box-shadow:0 0 6px currentColor"></div>` +
-          `<span style="font-size:11px">${nodeState?.online ? 'Online' : 'Offline'}</span>` +
-        `</div>` +
-        (aqiVal !== null
-          ? `<div style="margin-top:8px;padding:6px 10px;border-radius:8px;background:${color}18;border:1px solid ${color}40;text-align:center">` +
-              `<span style="font-size:20px;font-weight:700;color:${color}">${Math.round(aqiVal)}</span>` +
-              `<span style="font-size:10px;color:#8eafd4;margin-left:4px">AQI</span>` +
-              `<div style="font-size:11px;color:${color};margin-top:2px">${aqiLevel.label}</div>` +
-            `</div>`
-          : `<div style="margin-top:6px;font-size:11px;color:#8eafd4">AQI: awaiting data</div>`
-        ) +
-        `<div style="margin-top:6px;font-size:10px;color:#8eafd4">Radius: ${loc.radius} m</div>` +
-      `</div>`;
-
+    // Globe marker
     const marker = L.marker([loc.lat, loc.lng], {
-      icon: makeGlobeIcon(color, shortLabel),
-      zIndexOffset: 500
+      icon: makeGlobeIcon(id, shortLabel),
+      zIndexOffset: 600,
     }).addTo(mapInstance);
-    marker.bindPopup(popupContent, { closeButton: false, maxWidth: 200 });
+    marker.bindPopup(makeNodePopup(id, loc, nodeState, aqiVal), { closeButton:false, maxWidth:220, className:'ifranet-popup' });
 
-    // Subtle pulse animation via CSS on the circle
-    circle.on('add', () => {
-      const el = circle.getElement();
-      if(el) el.style.transition = 'opacity 1s ease-in-out';
-    });
+    // Update legend dot colour to match
+    const legendEl = document.getElementById(id === 'node_1' ? 'legendN1' : 'legendN2');
+    if(legendEl){
+      const dot = legendEl.querySelector('.legend-dot');
+      if(dot){ dot.style.background = c.main; dot.style.color = c.main; dot.style.boxShadow = `0 0 7px ${c.main}`; }
+    }
 
-    nodeMapLayers[id] = { circle, marker };
+    nodeMapLayers[id] = { circle, outerRing, marker };
   });
+
+  // Markers were just rebuilt — re-apply the nearest highlight + link on top
+  if(userLat!==null && userLng!==null) renderNearestLink();
+}
+
+function nodeBounds(){
+  const lats = Object.values(NODE_LOCATIONS).map(l => l.lat);
+  const lngs = Object.values(NODE_LOCATIONS).map(l => l.lng);
+  return L.latLngBounds(
+    [Math.min(...lats) - 0.003, Math.min(...lngs) - 0.003],
+    [Math.max(...lats) + 0.003, Math.max(...lngs) + 0.003]
+  );
 }
 
 function initMap(){
-  // Initialize Leaflet map — center between the two nodes
-  const midLat = (NODE_LOCATIONS.node_1.lat + NODE_LOCATIONS.node_2.lat) / 2;
-  const midLng = (NODE_LOCATIONS.node_1.lng + NODE_LOCATIONS.node_2.lng) / 2;
   const mapContainer = document.getElementById('mapContainer');
-  mapInstance = L.map(mapContainer).setView([midLat, midLng], 16);
 
-  // Add OpenStreetMap tile layer
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors',
-    maxZoom: 19,
-    tileSize: 256
+  // Use a dark CartoDB tile that matches the navy theme
+  mapInstance = L.map(mapContainer, { zoomControl: true, attributionControl: true })
+    .setView([22.5733, 88.3647], 16);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OSM</a> © <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 20,
   }).addTo(mapInstance);
 
-  // Draw node globes + radius zones
-  renderNodeMarkers();
+  // Move zoom control to bottom-left so it doesn't clash with our tray
+  mapInstance.zoomControl.setPosition('bottomleft');
 
-  // Refresh node markers whenever AQI data updates (every 10 s)
+  // Draw nodes
+  renderNodeMarkers();
   setInterval(renderNodeMarkers, 10000);
 
-  // Start watching user location
-  if(navigator.geolocation){
-    mapWatchId = navigator.geolocation.watchPosition(
-      position => updateMapLocation(position),
-      error => handleMapError(error),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  } else {
-    updateMapStatus('Geolocation not supported', false);
-  }
-
-  // Recenter button
+  // ── Recenter button: frame user + nearest node, or fall back to nodes ──
   const recenterBtn = document.getElementById('mapRecenterBtn');
   if(recenterBtn){
     recenterBtn.addEventListener('click', () => {
       if(userLat !== null && userLng !== null){
-        mapInstance.setView([userLat, userLng], 16);
+        const r = computeNearestNode();
+        if(r){
+          const loc = NODE_LOCATIONS[r.nearest_node];
+          const b = L.latLngBounds([[userLat, userLng], [loc.lat, loc.lng]]).pad(0.45);
+          mapInstance.flyToBounds(b, { duration:1.2, maxZoom:17 });
+        } else {
+          mapInstance.flyTo([userLat, userLng], 17, { duration: 1.2 });
+        }
+        recenterBtn.style.color = '#4ade80';
+        setTimeout(() => recenterBtn.style.color = '', 800);
       } else {
-        mapInstance.setView([midLat, midLng], 16);
+        mapInstance.flyToBounds(nodeBounds(), { padding:[40,40], duration:1.2 });
       }
     });
   }
+
+  // ── Fit-nodes button ──
+  const fitBtn = document.getElementById('mapFitBtn');
+  if(fitBtn){
+    fitBtn.addEventListener('click', () => {
+      mapInstance.flyToBounds(nodeBounds(), { padding:[50,50], duration:1.2 });
+    });
+  }
+
+  // ── GPS is handled by the single unified controller (startGPS).
+  //    If a fix already arrived before the map existed, render it now. ──
+  if(userLat!==null && userLng!==null){
+    if(lastPosition) updateMapFromPosition(lastPosition);
+    renderNearestLink();
+    autoFitOnce();
+  }
 }
 
-function updateMapLocation(position){
-  const { latitude, longitude, accuracy, altitude } = position.coords;
+// Animated pulsing user-location marker
+function makeUserIcon(){
+  const html = `<div class="user-dot-wrap">
+    <div class="user-dot-ring"></div>
+    <div class="user-dot-inner"></div>
+  </div>`;
+  return L.divIcon({ html, className:'', iconSize:[20,20], iconAnchor:[10,10], popupAnchor:[0,-14] });
+}
 
+function updateMapFromPosition(position){
+  const { latitude, longitude, accuracy, altitude } = position.coords;
   userLat = latitude;
   userLng = longitude;
 
-  document.getElementById('mapLat').textContent = latitude.toFixed(6);
-  document.getElementById('mapLng').textContent = longitude.toFixed(6);
+  document.getElementById('mapLat').textContent     = latitude.toFixed(6);
+  document.getElementById('mapLng').textContent     = longitude.toFixed(6);
   document.getElementById('mapAccuracy').textContent = Math.round(accuracy) + ' m';
   document.getElementById('mapAltitude').textContent = altitude ? Math.round(altitude) + ' m' : '—';
 
   if(mapInstance){
     if(mapMarker){
       mapMarker.setLatLng([latitude, longitude]);
+      mapAccCircle?.setLatLng([latitude, longitude]);
+      mapAccCircle?.setRadius(accuracy);
     } else {
-      mapMarker = L.circleMarker([latitude, longitude], {
-        radius: 8,
-        fillColor: '#7eb8f7',
-        color: '#a8d4ff',
-        weight: 3,
-        opacity: 1,
-        fillOpacity: 0.8
+      // Accuracy circle
+      mapAccCircle = L.circle([latitude, longitude], {
+        radius: accuracy,
+        color: '#38bdf8',
+        weight: 1,
+        opacity: 0.4,
+        fillColor: '#38bdf8',
+        fillOpacity: 0.06,
+        interactive: false,
       }).addTo(mapInstance);
+
+      // Pulsing dot
+      mapMarker = L.marker([latitude, longitude], { icon: makeUserIcon(), zIndexOffset: 1000 })
+        .addTo(mapInstance);
       mapMarker.bindPopup(
-        '<div style="background:#0d1b3e;color:#e8f0fe;padding:8px;border-radius:8px;border:1px solid #7eb8f740;">' +
-        '<div style="font-weight:600;margin-bottom:4px;">Your Location</div>' +
-        '<div style="font-size:12px;">Lat: ' + latitude.toFixed(6) + '</div>' +
-        '<div style="font-size:12px;">Lng: ' + longitude.toFixed(6) + '</div>' +
-        '</div>', { closeButton: false }
+        `<div style="background:#0d1b3e;color:#e8f0fe;padding:9px 13px;border-radius:10px;border:1px solid #38bdf840;font-family:'DM Sans',sans-serif">
+          <div style="font-weight:700;font-size:12px;color:#38bdf8;margin-bottom:4px">📍 Your Location</div>
+          <div style="font-size:11px;color:#8eafd4">${latitude.toFixed(5)}°, ${longitude.toFixed(5)}°</div>
+          <div style="font-size:10px;color:#8eafd4;margin-top:3px">Accuracy ±${Math.round(accuracy)} m</div>
+        </div>`,
+        { closeButton:false }
       );
     }
+    // Draw the link to the nearest node, then frame both on the first fix
+    renderNearestLink();
+    autoFitOnce();
+  }
+  updateMapStatus('GPS active — live tracking', true);
+}
+
+// ── Nearest-node visualisation on the map ──
+let nearestLine  = null;
+let nearestLabel = null;
+let hasAutoFit   = false;
+
+function renderNearestLink(){
+  if(!mapInstance || userLat===null || userLng===null) return;
+  const r = computeNearestNode();
+  if(!r) return;
+  const loc = NODE_LOCATIONS[r.nearest_node];
+  const c   = NODE_COLOURS[r.nearest_node] || { main:'#7eb8f7' };
+  const latlngs = [[userLat, userLng], [loc.lat, loc.lng]];
+
+  // Connector line (animated dashes)
+  if(nearestLine){
+    nearestLine.setLatLngs(latlngs);
+    nearestLine.setStyle({ color:c.main });
+  } else {
+    nearestLine = L.polyline(latlngs, {
+      color:c.main, weight:3, opacity:0.95, dashArray:'2 9',
+      lineCap:'round', className:'nearest-link', interactive:false,
+    }).addTo(mapInstance);
+  }
+  nearestLine.bringToFront();
+
+  // Distance label pinned at the midpoint
+  const midLat=(userLat+loc.lat)/2, midLng=(userLng+loc.lng)/2;
+  const html = `<div class="nearest-tag" style="--nc:${c.main}">${fmtDist(r.distance_m)} → ${loc.name}</div>`;
+  const icon = L.divIcon({ html, className:'', iconSize:[0,0] });
+  if(nearestLabel){
+    nearestLabel.setLatLng([midLat, midLng]);
+    nearestLabel.setIcon(icon);
+  } else {
+    nearestLabel = L.marker([midLat, midLng], { icon, interactive:false, zIndexOffset:900 }).addTo(mapInstance);
   }
 
-  updateMapStatus('GPS active', true);
+  highlightNearestNode(r.nearest_node);
+}
+
+// Brighten the nearest node's circle, dim the others
+function highlightNearestNode(nearestId){
+  Object.keys(nodeMapLayers).forEach(id => {
+    const layer = nodeMapLayers[id];
+    if(!layer) return;
+    const isNear = (id === nearestId);
+    layer.circle?.setStyle({
+      weight:     isNear ? 3   : 2,
+      opacity:    isNear ? 1   : 0.45,
+      fillOpacity:isNear ? 0.15: 0.04,
+      dashArray:  isNear ? null: '8 5',
+    });
+    layer.outerRing?.setStyle({ opacity: isNear ? 0.42 : 0.10 });
+  });
+}
+
+// On the very first GPS fix, frame the user + nearest node together
+function autoFitOnce(){
+  if(hasAutoFit || !mapInstance || userLat===null || userLng===null) return;
+  const r = computeNearestNode();
+  if(!r) return;
+  const loc = NODE_LOCATIONS[r.nearest_node];
+  const bounds = L.latLngBounds([[userLat, userLng], [loc.lat, loc.lng]]).pad(0.45);
+  mapInstance.flyToBounds(bounds, { duration:1.2, maxZoom:17 });
+  hasAutoFit = true;
 }
 
 function handleMapError(error){
-  let message = 'Location access denied';
-  if(error.code === error.PERMISSION_DENIED) message = 'GPS permission denied';
+  let message = 'Location unavailable';
+  if(error.code === error.PERMISSION_DENIED)      message = 'GPS permission denied';
   else if(error.code === error.POSITION_UNAVAILABLE) message = 'GPS position unavailable';
-  else if(error.code === error.TIMEOUT) message = 'GPS request timeout';
+  else if(error.code === error.TIMEOUT)           message = 'GPS request timeout';
   updateMapStatus(message, false);
 }
 
 function updateMapStatus(text, active){
   const status = document.getElementById('mapStatus');
   const statusText = document.getElementById('mapStatusText');
-  statusText.textContent = text;
-  status.className = active ? 'map-status active' : 'map-status';
+  if(statusText) statusText.textContent = text;
+  if(status) status.className = active ? 'map-status active' : 'map-status';
 }
 
 // ── Boot ──
